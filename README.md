@@ -1,16 +1,3 @@
-# RW-Template
-
-Badges below (Downloads and Stars) update automatically every 5-15 minutes
-
-[<img src="https://img.shields.io/github/downloads/richardbwang/RW-Template/total?style=for-the-badge">](https://github.com/richardbwang/RW-Template/releases)
-
-[<img src="https://img.shields.io/github/stars/richardbwang/RW-Template?style=for-the-badge">](https://github.com/richardbwang/RW-Template/stargazers)
-
-## 📦 Project Description
-
-Welcome to RW-Template! This project is an advanced **VEX V5 autonomous robotics template** focused on precise, algorithm-driven motion planning and control. It is designed for teams who want robust, adaptable autonomous routines with support for a wide range of sensor and drive configurations.
-
----
 
 ## 🚀 Features
 
@@ -53,35 +40,24 @@ Welcome to RW-Template! This project is an advanced **VEX V5 autonomous robotics
 - Seamlessly integrated position resets using distance sensors.
 - Has support for sensors on all sides, or on just the specific sides you want.
 
-### 💡 Easy Updates
-- `custom/` folder isolates personal changes from core logic  
-- future updates to core code are seamless
-- copy/paste portability across projects or seasons  
-
----
-
-## 🛠️ Installation/Update Guide
-
-Follow these steps to set up the project on your local machine:
-
-1. **Download and install Visual Studio Code (VS Code)**
-   - [https://code.visualstudio.com/](https://code.visualstudio.com/)
-
-2. **Install the VEX Robotics Extension in VS Code**
-   - Open the Extensions view (`Ctrl/Cmd+Shift+X`)
-   - Search for and install **"VEX Robotics Extension"** by VEX Robotics
-
-3. **Set up the project folder**
-   - Download the latest version's ZIP file titled **`RW-Template.zip`** (not the source code files) from the [Releases](https://github.com/richardbwang/RW-Template/releases) section below
-   - Unzip the downloaded file
-   - Open the resulting folder with Visual Studio Code
-   - If you are an existing user, copy and paste the **custom** folder of the old version into the new project for updating to newer versions
 
 ---
 
 ## 📘 Usage Guide
 
 **Note: Anything modified outside of the custom folder will not be preserved in updates.**
+
+### Getting Started
+
+1. Open `custom/src/robot-config.cpp` and `custom/include/robot-config.h`. Set the
+   ports, motor directions, sensors, and motor groups to match your robot.
+2. Tune the chassis PID in
+   `custom/src/robot-config.cpp`. Then calibrate the lift conversion, limits, Lift PID,
+   claw, and roller settings in `custom/src/subsystems.cpp` before operating the
+   mechanisms.
+3. Add and tune autonomous routines in `custom/src/autonomous.cpp`. Select which
+   routine runs in `runAutonomous()` in `custom/src/user.cpp`, then test it on the
+   field.
 
 ### 1. Project Structure
 
@@ -142,49 +118,81 @@ Edit `custom/src/autonomous.cpp` to define your autonomous routines.
 
 You can use the motion functions from `motor-control.h`:
 
-- `driveTo(distance, time_limit, exit, max_output)`  
-- `turnToAngle(angle, time_limit, exit, max_output)`  
-- `moveToPoint(x, y, dir, time_limit, exit, max_output, overturn)`  
-- `boomerang(x, y, dir, angle, dlead, time_limit, exit, max_output, overturn)`
+- `driveChassis(left_power, right_power)` — directly set left/right drive power.
+- `driveTo(distance_in, time_limit_msec, exit, max_output)` — drive a distance in
+  inches; positive drives forward and negative drives backward.
+- `turnToAngle(turn_angle, time_limit_msec, exit, max_output)` — turn to an
+  absolute heading in degrees.
+- `swing(swing_angle, drive_direction, time_limit_msec, exit, max_output)` —
+  turn around one stationary side of the chassis.
+- `curveCircle(result_angle_deg, center_radius, time_limit_msec, exit, max_output)`
+  — follow an arc using its radius and desired angle.
+- `turnToPoint(x, y, dir, time_limit_msec)` — turn to face a field coordinate.
+- `moveToPoint(x, y, dir, time_limit_msec, exit, max_output, overturn)` — drive
+  to a field coordinate, correcting heading and distance along the way.
+- `boomerang(x, y, dir, angle, dlead, time_limit_msec, exit, max_output, overturn)`
+  — follow a curved path to a position and final heading.
+
+Coordinates and distances are in inches, headings and angles are in degrees, and
+time limits are in milliseconds. `exit` controls whether a motion stops the
+chassis at the end, which can be useful when chaining motions. `max_output`
+limits the motion controller's motor output. Tracking wheels can improve field
+position estimates for point-to-point movement; the template can also use
+drivetrain encoders and the inertial sensor.
 
 Select the routine to run inside the `runAutonomous()` function in `custom/src/user.cpp`.
 
-The lift/claw subsystem runs automatically in both autonomous and driver control. Call
-`scoreLiftAutonomous()` from an autonomous routine to raise the lift by 10 inches for
-each completed score, then lower it and release the game element. The first call
-targets 10 inches, the next 20 inches, and so on, capped by `lift_max_height_inches`.
-Call `setLiftTargetHeight(height_inches)` to asynchronously move to a chosen height
-and hold there; the target is clamped between zero and `lift_max_height_inches`.
-Use `getAutonomousScoreCount()` to read the number of completed scores. Set the
-roller color for a routine with `setRollerTargetColor(RollerColor::Red)`,
-`RollerColor::Yellow`, or `RollerColor::Blue`.
+### Subsystem Functionality
+
+The lift, claw, and roller control loop starts during pre-autonomous and continues
+to run in both autonomous and driver control:
+
+- **Claw intake and detection:** At the bottom, the claw motor group intakes until
+  `clawDetect` sees a game piece within `claw_detect_distance_mm`; it then holds
+  the piece. The claw rotator retracts for intake.
+- **Driver lift and scoring:** Hold **L2** to raise the lift. Encoder feedback
+  measures the lift height in inches and PID control tracks the target while the
+  button is held. Releasing **L2** starts the descent. Once the lift is within
+  5 inches of its captured scoring height, the rotator opens and the claw slowly
+  outtakes. After reaching the bottom and completing the release, it returns to
+  intake.
+- **Manual lift target:** Call `setLiftTargetHeight(height_inches)` to request a
+  lift height asynchronously. It clamps the target from zero to
+  `lift_max_height_inches` and holds that target. A target of zero returns the
+  lift to the bottom without starting the automatic scoring release.
+- **Autonomous scoring:** Call `scoreLiftAutonomous()` to run a complete raise,
+  lower, and release cycle. Each completed call increases the target by 10 inches
+  (10 inches on the first call, 20 on the second, etc.), up to
+  `lift_max_height_inches`. The function waits for that cycle to complete.
+  `getAutonomousScoreCount()` returns the number of completed autonomous cycles.
+- **Toggle roller:** The optical sensor continuously checks the roller color. The
+  toggle motor spins while an object is present and its color does not match the
+  target; it holds when the target color is detected or no object is seen. Set the
+  target with `setRollerTargetColor(RollerColor::Red)`, `RollerColor::Yellow`, or
+  `RollerColor::Blue`; the default is red.
+- **Tied in Functionality:** There is only one button needed to be pressed between intaking and scoring.
+
+Subsystem tuning variables, including lift conversion and PID gains, claw
+detection distance and rotator angles, and toggle motor voltage, are declared in
+`custom/include/subsystems.h` and initialized in `custom/src/subsystems.cpp`.
+`lift_inches_per_output_revolution` defaults to 28 inches and
+`lift_gear_reduction` is 60:12 (5:1). The lift encoder is zeroed at startup, so
+start with the lift fully lowered and tune the conversion to the actual mechanism.
 
 ### 5. Driver Control
 
 Edit the `runDriver()` function in `custom/src/user.cpp`.
 
-By default, it uses tank drive:
+By default, driver control uses arcade-style drive: **Axis3** controls forward and
+reverse, and **Axis1** controls turning. The current mix is:
 
-`driveChassis(ch3 * 0.12, ch2 * 0.12);`
+`driveChassis(ch3 * 0.12 + ch1 * 0.123, ch3 * 0.12 - ch1 * 0.123);`
 
 You can customize this for:
 
-- Arcade drive  
-- Split arcade  
+- Tank drive
+- Different arcade or split-arcade mixes
 - Adding button controls for mechanisms
-
-Hold **L2** to raise the lift; the encoder-based PID tracks a rising target while
-the button is held. Releasing **L2** starts the automatic descent and release
-sequence. The claw intakes at the bottom until `clawDetect` senses a game element.
-The toggle roller automatically turns toward its configured target color and holds
-when no object or the target color is detected.
-
-Subsystem settings are declared in `custom/include/subsystems.h` and their starter
-values are in `custom/src/subsystems.cpp`. `lift_inches_per_output_revolution`
-defaults to 28 inches, and `lift_gear_reduction` defaults to 60:12 (5:1). Tune
-the maximum height, PID gains, hold voltage, claw detection distance, and
-rotator retract/open angles to match the mechanism before operating the robot.
-The lift encoder is zeroed at startup, so begin with the lift fully lowered.
 
 ### 6. Competition Setup
 
@@ -214,6 +222,4 @@ This template follows the VEX Competition structure:
 
 ---
 
-This template is **competition-ready** and provides a strong foundation for building reliable, high-performance autonomous routines using **proven robotics algorithms**, whether or not your robot uses advanced odometry. 
-
-If you find this template useful, please star this repository and subscribe to https://www.youtube.com/@1698V to follow my team's progress and learn more about our programming. 
+Each new branch added would be for the other robots.
