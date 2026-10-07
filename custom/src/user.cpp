@@ -2,20 +2,23 @@
 #include "motor-control.h"
 #include "../custom/include/autonomous.h"
 #include "../custom/include/robot-config.h"
+#include "../custom/include/subsystems.h"
 
 // Modify autonomous, driver, or pre-auton code below
 
 void runAutonomous() {
-  int auton_selected = 3;
+  startSubsystems();
+  updateDriverSubsystems(false);
+  int auton_selected = 1;
   switch(auton_selected) {
     case 1:
-      exampleAuton();
+      //exampleAuton();
       break;
     case 2:
-      exampleAuton2();
+      //exampleAuton2();
       break;  
     case 3:
-      redGoalRush();
+      //redGoalRush();
       break;
     case 4:
       break; 
@@ -64,7 +67,8 @@ void runDriver() {
     button_right_arrow = controller_1.ButtonRight.pressing();
 
     // default tank drive or replace it with your preferred driver code here: 
-    driveChassis(ch3 * 0.12, ch2 * 0.12);
+    driveChassis(ch3 * 0.12 + ch1 * 0.123, ch3 * 0.12 - ch1 * 0.123);
+    updateDriverSubsystems(l2);
 
     wait(10, msec); 
   }
@@ -73,6 +77,7 @@ void runDriver() {
 void runPreAutonomous() {
     // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+  startSubsystems();
   
   // Calibrate inertial sensor
   inertial_sensor.calibrate();

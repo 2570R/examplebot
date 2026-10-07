@@ -1,12 +1,12 @@
 #include <string>
 #include <cmath>
-
+#include "../custom/logs/logger.h"
 // --- Global Variables (snake_case) ---
 extern bool is_turning;
 
 extern double x_pos, y_pos;
 extern double correct_angle;
-
+extern Logger logger;
 // --- Function Declarations (lowerCamelCase) ---
 void driveChassis(double left_power, double right_power);
 

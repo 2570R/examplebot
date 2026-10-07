@@ -6,7 +6,7 @@
 #include "motor-control.h"
 #include "../custom/include/autonomous.h"
 #include "../custom/include/robot-config.h"
-
+#include "../custom/logs/logger.h"
 // ============================================================================
 // INTERNAL STATE (DO NOT CHANGE)
 // ============================================================================
@@ -17,6 +17,7 @@ double correct_angle = 0;
 // Field config for distance resets, DO NOT CHANGE
 double field_half_size = 70.25;  // Half field size in inches
 
+Logger logger(std::cout, Logger::Level::INFO);
 // ============================================================================
 // CHASSIS CONTROL FUNCTIONS
 // ============================================================================
@@ -157,7 +158,7 @@ void turnToAngle(double turn_angle, double time_limit_msec, bool exit, double ma
   is_turning = true;
   double threshold = 1;
   PID pid = PID(turn_kp, turn_ki, turn_kd);
-
+  
   // Normalize and set PID target
   turn_angle = normalizeTarget(turn_angle);
   pid.setTarget(turn_angle);
@@ -224,6 +225,9 @@ void turnToAngle(double turn_angle, double time_limit_msec, bool exit, double ma
       wait(10, msec);
     }
   }
+  logger.info("Exiting turn_angle: %f", getInertialHeading());
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   if(exit) {
     stopChassis(vex::hold);
   }
@@ -240,6 +244,7 @@ void turnToAngle(double turn_angle, double time_limit_msec, bool exit, double ma
  */
 void driveTo(double distance_in, double time_limit_msec, bool exit, double max_output) {
   // Store initial encoder values
+  logger.info("Starting drive to distance: %f", distance_in);
   double start_left = getLeftRotationDegree(), start_right = getRightRotationDegree();
   stopChassis(vex::brakeType::coast);
   is_turning = true;
@@ -331,6 +336,8 @@ void driveTo(double distance_in, double time_limit_msec, bool exit, double max_o
     driveChassis(left_output, right_output);
     wait(10, msec);
   }
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   if(exit) {
     prev_left_output = 0;
     prev_right_output = 0;
@@ -519,6 +526,8 @@ void curveCircle(double result_angle_deg, double center_radius, double time_limi
       wait(10, msec);
     }
   }
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   // Stop the chassis if required
   if(exit == true) {
     stopChassis(vex::brakeType::hold);
@@ -667,6 +676,7 @@ void swing(double swing_angle, double drive_direction, double time_limit_msec, b
       right_chassis.spin(fwd, output * drive_direction, volt);
       wait(10, msec);
     }
+    
   }
 
   // PID loop for exit == true (stop at end)
@@ -706,6 +716,8 @@ void swing(double swing_angle, double drive_direction, double time_limit_msec, b
     }
     wait(10, msec);
   }
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   if(exit == true) {
     stopChassis(vex::hold); // Stop chassis at end if required
   }
@@ -980,6 +992,8 @@ void turnToPoint(double x, double y, int direction, double time_limit_msec) {
     driveChassis(output, -output); // Apply output to chassis
     wait(10, msec);
   }  
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   stopChassis(vex::hold); // Stop at end
   correct_angle = getInertialHeading(); // Update global heading
   is_turning = false;                   // Reset turning state
@@ -1114,6 +1128,8 @@ void moveToPoint(double x, double y, int dir, double time_limit_msec, bool exit,
     driveChassis(left_output, right_output); // Apply output to chassis
     wait(10, msec);
   }
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   if(exit == true) {
     prev_left_output = 0;
     prev_right_output = 0;
@@ -1265,6 +1281,8 @@ void boomerang(double x, double y, int dir, double a, double dlead, double time_
     driveChassis(left_output, right_output); // Apply output to chassis
     wait(10, msec);
   }
+  logger.info("Odom: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+  logger.fatal("----------------------------");
   if(exit) {
     prev_left_output = 0;
     prev_right_output = 0;
@@ -1347,6 +1365,8 @@ void resetPositionWithSensor(vex::distance& sensor, double s_x, double s_y, doub
  */
 void resetPositionFront() {
     resetPositionWithSensor(front_sensor, front_sensor_offsetX, front_sensor_offsetY, 0.0, field_half_size);
+    logger.info("New Odom Coords: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+    logger.fatal("--------------RESET--------------");
 }
 
 /*
@@ -1360,6 +1380,8 @@ void resetPositionFront() {
 
 void resetPositionBack() {
     resetPositionWithSensor(back_sensor, back_sensor_offsetX, back_sensor_offsetY, 180.0, field_half_size);
+    logger.info("New Odom Coords: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+    logger.fatal("--------------RESET--------------");
 }
    
 
@@ -1372,6 +1394,8 @@ void resetPositionBack() {
  */
 void resetPositionLeft() {
     resetPositionWithSensor(left_sensor, left_sensor_offsetX, left_sensor_offsetY, 270.0, field_half_size);
+    logger.info("New Odom Coords: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+    logger.fatal("--------------RESET--------------");
 }
 
 /*
@@ -1383,6 +1407,8 @@ void resetPositionLeft() {
  */
 void resetPositionRight() {
     resetPositionWithSensor(right_sensor, right_sensor_offsetX, right_sensor_offsetY, 90.0, field_half_size);
+    logger.info("New Odom Coords: %.2f, %.2f, %.2f", x_pos, y_pos, getInertialHeading());
+    logger.fatal("--------------RESET--------------");
 }
 
 // ============================================================================

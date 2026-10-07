@@ -18,17 +18,28 @@ controller controller_1 = controller(primary);
 // such as driveChassis(12, 12)
 motor left_chassis1 = motor(PORT1, ratio6_1, true);
 motor left_chassis2 = motor(PORT2, ratio6_1, true);
-motor left_chassis3 = motor(PORT3, ratio6_1, false);
-motor_group left_chassis = motor_group(left_chassis1, left_chassis2, left_chassis3);
+motor_group left_chassis = motor_group(left_chassis1, left_chassis2);
+
 motor right_chassis1 = motor(PORT4, ratio6_1, false);
 motor right_chassis2 = motor(PORT5, ratio6_1, false);
-motor right_chassis3 = motor(PORT6, ratio6_1, true);
-motor_group right_chassis = motor_group(right_chassis1, right_chassis2, right_chassis3);
+motor_group right_chassis = motor_group(right_chassis1, right_chassis2);
 
-inertial inertial_sensor = inertial(PORT7);
-optical example_optical_sensor = optical(PORT8);
-distance example_distance_sensor = distance(PORT9);
-digital_out example_piston = digital_out(Brain.ThreeWirePort.A);
+motor liftL = motor(PORT6, ratio18_1, true);
+motor liftR = motor(PORT7, ratio18_1, false);
+motor_group lift = motor_group(liftL, liftR);
+
+motor toggle = motor(PORT11, ratio18_1, true);
+
+motor clawL = motor(PORT12, ratio18_1, true);
+motor clawR = motor(PORT13, ratio18_1, false);
+motor clawRotator = motor(PORT14, ratio18_1, true);
+motor_group claw = motor_group(clawL, clawR);
+
+inertial inertial_sensor = inertial(PORT8);
+optical toggleOptical = optical(PORT9);
+distance clawDetect = distance(PORT10);
+
+
 
 // Format is rotation(port, reversed)
 // just set these to random ports if you don't use tracking wheels
@@ -42,27 +53,16 @@ distance left_sensor = distance(PORT13);
 distance right_sensor = distance(PORT14);
 distance back_sensor = distance(PORT15);
 
-// game specific devices for high stakes
-motor arm_motor1 = motor(PORT16, ratio18_1, true);
-motor arm_motor2 = motor(PORT17, ratio18_1, false);
-motor_group arm_motor = motor_group(arm_motor1, arm_motor2);
-motor intake_motor = motor(PORT18, ratio18_1, true);
-digital_out claw = digital_out(Brain.ThreeWirePort.B);
-digital_out rush_arm = digital_out(Brain.ThreeWirePort.C);
-optical optical_sensor = optical(PORT19);
-distance intake_distance = distance(PORT20);
-distance clamp_distance = distance(PORT21);
-digital_out mogo_mech = digital_out(Brain.ThreeWirePort.D);
 
 // ============================================================================
 // USER-CONFIGURABLE PARAMETERS (CHANGE BEFORE USING THIS TEMPLATE)
 // ============================================================================
 
 // Distance between the middles of the left and right wheels of the drive (in inches)
-double distance_between_wheels = 12.3;
+double distance_between_wheels = 13;
 
 // motor to wheel gear ratio * wheel diameter (in inches) * pi
-double wheel_distance_in = (36.0 / 48.0) * 3.17 * M_PI;
+double wheel_distance_in = (36.0 / 48.0) * 2.75 * M_PI;
 
 // PID Constants for movement
 // distance_* : Linear PID for straight driving
@@ -120,14 +120,14 @@ double min_output = 10; // Minimum output voltage to motors while chaining movem
 
 // Maximum allowed change in voltage output per 10 msec during movement
 double max_slew_accel_fwd = 24;
-double max_slew_decel_fwd = 24;
+double max_slew_decel_fwd = 10;
 double max_slew_accel_rev = 24;
-double max_slew_decel_rev = 24;
+double max_slew_decel_rev = 10;
 
 // Prevents too much slipping during boomerang movements
 // Decrease if there is too much drifting and inconsistency during boomerang
 // Increase for more speed during boomerang
-double chase_power = 2;
+double chase_power = 5;
 
 // ============================================================================
 // DO NOT CHANGE ANYTHING BELOW

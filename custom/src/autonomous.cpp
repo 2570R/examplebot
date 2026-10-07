@@ -6,22 +6,126 @@
 #include <thread>
 
 #include "../include/autonomous.h"
+#include "../include/subsystems.h"
+#include "../include/robot-config.h"
+
 #include "motor-control.h"
 
 // IMPORTANT: Remember to add respective function declarations to custom/include/autonomous.h
 // Call these functions from custom/include/user.cpp
 // Format: returnType functionName() { code }
 
+namespace {
+
+// Wrap any motion sequence in this callback and pass its arguments as data.
+typedef void (*AutonomousMovement)(void*);
+
+volatile bool movement_finished = false;
+AutonomousMovement autonomous_movement = 0;
+void* autonomous_movement_data = 0;
+
+struct DriveMovement {
+  double distance_inches;
+  int duration_msec;
+  bool exit;
+  double speed;
+};
+
+struct PointMovement {
+  double x;
+  double y;
+  int direction;
+  int duration_msec;
+  bool exit;
+  double speed;
+  bool overturn;
+};
+
+struct PoseMovement {
+  double x;
+  double y;
+  int direction;
+  double target_angle;
+  double dlead;
+  int duration_msec;
+  bool exit;
+  double speed;
+  bool overturn;
+};
+
+void runDriveMovement(void* data) {
+  DriveMovement* movement = static_cast<DriveMovement*>(data);
+  driveTo(movement->distance_inches, movement->duration_msec, movement->exit, movement->speed);
+}
+
+void runPointMovement(void* data) {
+  PointMovement* movement = static_cast<PointMovement*>(data);
+  moveToPoint(movement->x, movement->y, movement->direction,
+              movement->duration_msec, movement->exit, movement->speed, movement->overturn);
+}
+
+void runPoseMovement(void* data) {
+  PoseMovement* movement = static_cast<PoseMovement*>(data);
+  boomerang(movement->x, movement->y, movement->direction, movement->target_angle, movement->dlead, movement->duration_msec, movement->exit, movement->speed, movement->overturn);
+}
+
+void runAutonomousMovement() {
+  autonomous_movement(autonomous_movement_data);
+  movement_finished = true;
+}
+
+bool runMovementWhileWaitingForGamePiece(AutonomousMovement movement,
+                                         void* movement_data,
+                                         int acquisition_timeout_msec) {
+  if (isGamePieceAcquired()) return true;
+
+  autonomous_movement = movement;
+  autonomous_movement_data = movement_data;
+  movement_finished = false;
+  thread movement_task = thread(runAutonomousMovement);
+
+  const double start_time = Brain.timer(msec);
+  bool acquired = false;
+  while (Brain.timer(msec) - start_time < acquisition_timeout_msec) {
+    if (isGamePieceAcquired()) {
+      acquired = true;
+      break;
+    }
+    wait(10, msec);
+  }
+
+  if (!acquired) acquired = isGamePieceAcquired();
+  if (!movement_finished) {
+    movement_task.interrupt();
+    stopChassis(hold);
+  }
+  return acquired;
+}
+
+}  // namespace
+
 void exampleAuton() {
-  // Use this for tuning linear and turn pid
-  driveTo(60, 3000);
+  DriveMovement first_approach = {24, 2000};
+  PointMovement second_approach = {18, 18, 1, 2000, false, 8, false};
+
+  setRollerTargetColor(RollerColor::Red);
+  if (runMovementWhileWaitingForGamePiece(
+          runDriveMovement, &first_approach, 2500)) {
+    scoreLiftAutonomous();  // First completed score targets 10 inches.
+  }
+
   turnToAngle(90, 2000);
-  turnToAngle(135, 2000);
-  turnToAngle(150, 2000);
-  turnToAngle(160, 2000);
-  turnToAngle(165, 2000);
-  turnToAngle(0, 2000);
-  driveTo(-60, 3000);
+  setRollerTargetColor(RollerColor::Yellow);
+  if (runMovementWhileWaitingForGamePiece(
+          runPointMovement, &second_approach, 2500)) {
+    scoreLiftAutonomous();  // Second completed score targets 20 inches.
+  }
+
+  turnToAngle(180, 2000);
+  setRollerTargetColor(RollerColor::Blue);
+  setLiftTargetHeight(15.0);  // Demonstrate a custom lift target in inches.
+  wait(1000, msec);
+  driveTo(-42, 3000);
 }
 
 void exampleAuton2() {
@@ -35,14 +139,15 @@ void exampleAuton2() {
   turnToAngle(180, 800, true);
 }
 
-double arm_pid_target = 0, arm_load_target = 60, arm_store_target = 250, arm_score_target = 470;
+
 
 /*
  * armPID
  * Runs a single PID update for the arm motor to reach the specified target position.
  * - arm_target: Desired arm position (degrees).
- */
+ 
 void armPID(double arm_target) {
+  /*
   PID pidarm = PID(0.1, 0, 0.5); // Initialize PID controller for arm
   pidarm.setTarget(arm_target);   // Set target position
   pidarm.setIntegralMax(0);  
@@ -57,7 +162,7 @@ void armPID(double arm_target) {
 /*
  * armPIDLoop
  * Continuously runs the arm PID control in a separate thread, keeping the arm at the target position.
- */
+ 
 void armPIDLoop() {
   while(true) {
     armPID(arm_pid_target); // Continuously update arm position
@@ -69,7 +174,7 @@ void armPIDLoop() {
  * rushClamp
  * Waits until the clamp distance sensor detects an object within 85mm, then closes the claw and lowers the rush arm.
  * Used for quickly grabbing a mobile goal at the start of autonomous.
- */
+ 
 void rushClamp() {
   while(clamp_distance.objectDistance(mm) > 85) { // Wait for object to be close enough
     wait(10, msec);
@@ -82,7 +187,7 @@ void rushClamp() {
  * intakeThread
  * Runs the intake until an object is detected by the optical or distance sensor, then stops the intake.
  * Used for picking up rings or other objects during autonomous.
- */
+ 
 void intakeThread(){
   optical_sensor.setLight(ledState::on);      // Turn on optical sensor light
   optical_sensor.setLightPower(100);          // Set light power to max
@@ -97,7 +202,7 @@ void intakeThread(){
  * 2024-2025 World Championship runner-up(1698V) autonomous routine.
  * This routine executes a complex sequence to rush, grab, and score mobile goals and rings.
  * It uses multiple threads for simultaneous arm, clamp, and intake control.
- */
+ 
 void redGoalRush() {
   arm_motor.setPosition(arm_load_target, deg);         // Set arm to load position
   correct_angle = inertial_sensor.rotation();          // Sync correct_angle with inertial sensor
@@ -176,3 +281,4 @@ void redGoalRush() {
   turnToAngle(40, 200);                                // Final turn for alignment
   driveChassis(1, 1);                                  // Slow drive forward
 }
+*/

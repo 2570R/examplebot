@@ -90,11 +90,13 @@ Your project is organized into the following folders and files:
 **custom/include/**
 - `autonomous.h` — Declarations for autonomous routines  
 - `robot-config.h` — Declarations for robot devices
+- `subsystems.h` — Lift, claw, and roller subsystem controls
 - `user.h` — Declarations for user functions
 
 **custom/src/**
 - `autonomous.cpp` — Your autonomous routines  
 - `robot-config.cpp` — Your robot's device configurations
+- `subsystems.cpp` — Lift, claw, and roller control loops
 - `user.cpp` — User functions
 
 **include/**
@@ -147,6 +149,16 @@ You can use the motion functions from `motor-control.h`:
 
 Select the routine to run inside the `runAutonomous()` function in `custom/src/user.cpp`.
 
+The lift/claw subsystem runs automatically in both autonomous and driver control. Call
+`scoreLiftAutonomous()` from an autonomous routine to raise the lift by 10 inches for
+each completed score, then lower it and release the game element. The first call
+targets 10 inches, the next 20 inches, and so on, capped by `lift_max_height_inches`.
+Call `setLiftTargetHeight(height_inches)` to asynchronously move to a chosen height
+and hold there; the target is clamped between zero and `lift_max_height_inches`.
+Use `getAutonomousScoreCount()` to read the number of completed scores. Set the
+roller color for a routine with `setRollerTargetColor(RollerColor::Red)`,
+`RollerColor::Yellow`, or `RollerColor::Blue`.
+
 ### 5. Driver Control
 
 Edit the `runDriver()` function in `custom/src/user.cpp`.
@@ -160,6 +172,19 @@ You can customize this for:
 - Arcade drive  
 - Split arcade  
 - Adding button controls for mechanisms
+
+Hold **L2** to raise the lift; the encoder-based PID tracks a rising target while
+the button is held. Releasing **L2** starts the automatic descent and release
+sequence. The claw intakes at the bottom until `clawDetect` senses a game element.
+The toggle roller automatically turns toward its configured target color and holds
+when no object or the target color is detected.
+
+Subsystem settings are declared in `custom/include/subsystems.h` and their starter
+values are in `custom/src/subsystems.cpp`. `lift_inches_per_output_revolution`
+defaults to 28 inches, and `lift_gear_reduction` defaults to 60:12 (5:1). Tune
+the maximum height, PID gains, hold voltage, claw detection distance, and
+rotator retract/open angles to match the mechanism before operating the robot.
+The lift encoder is zeroed at startup, so begin with the lift fully lowered.
 
 ### 6. Competition Setup
 
@@ -192,4 +217,3 @@ This template follows the VEX Competition structure:
 This template is **competition-ready** and provides a strong foundation for building reliable, high-performance autonomous routines using **proven robotics algorithms**, whether or not your robot uses advanced odometry. 
 
 If you find this template useful, please star this repository and subscribe to https://www.youtube.com/@1698V to follow my team's progress and learn more about our programming. 
-
