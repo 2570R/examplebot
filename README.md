@@ -203,16 +203,7 @@ This template follows the VEX Competition structure:
 - `usercontrol()` which calls `runDriver()` runs during the driver control period  
 - The `main()` function connects all of these automatically
 
-### 7. Tips for Success
-
-- Read comments in each file — they clarify how each function and variable works  
-- Tune PID values for optimal performance  
-- Test motion functions like `driveTo`, `turnToAngle`, and `moveToPoint` individually  
-- Use odometry for advanced navigation (with or without tracking wheels)  
-- Don’t hesitate to reach out to me or the VEX community for help
-- Join our discord (link is in the description)
-
-### 8. Where to Start
+### 7. Where to Start
 
 - Set up ports and devices in `custom/src/robot-config.cpp` and `custom/include/robot-config.h`  
 - Input chassis measurements and PID values in `custom/src/robot-config.cpp`  
